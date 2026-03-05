@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hereandnowai/images/refs/heads/main/logos/logo-of-here-and-now-ai.png" alt="HERE AND NOW AI Logo" width="400">
+</p>
+
 # Hands-on RAG (Retrieval-Augmented Generation)
 
 > **"AI is Good"**
@@ -57,9 +61,21 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ---
 
-## 🤝 Connect With Us
+## 🤝 Connect with Us
+
+We’re building the future of AI, and we’d love for you to be a part of it.
+
 - **Website:** [hereandnowai.com](https://hereandnowai.com)
-- **Email:** [hello@hereandnowai.com](mailto:hello@hereandnowai.com)
+- **Email:** [info@hereandnowai.com](mailto:info@hereandnowai.com)
+- **Phone:** [+91 996 296 1000](tel:+919962961000)
+
+### Follow our Journey
+- [LinkedIn](https://www.linkedin.com/company/hereandnowai/)
+- [X (formerly Twitter)](https://x.com/hereandnow_ai)
+- [Instagram](https://instagram.com/hereandnow_ai)
+- [YouTube](https://youtube.com/@hereandnow_ai)
+- [GitHub](https://github.com/hereandnowai)
 
 ---
 *Created with ❤️ by **HERE AND NOW AI***
+
