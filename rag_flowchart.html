@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Hybrid Search Pipeline — Flowchart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --accent-blue: #4fc3f7;
+            --accent-purple: #b388ff;
+            --accent-green: #69f0ae;
+            --accent-orange: #ffab40;
+            --accent-pink: #f48fb1;
+            --accent-cyan: #80deea;
+            --text-primary: #e8eaed;
+            --text-secondary: #9aa0a6;
+            --border-subtle: rgba(255,255,255,0.06);
+            --glow-blue: 0 0 30px rgba(79,195,247,0.15);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(79,195,247,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(179,136,255,0.08) 0%, transparent 50%);
+            z-index: -1;
+            animation: bgShift 15s ease-in-out infinite alternate;
+        }
+        @keyframes bgShift {
+            0%   { opacity: 0.6; }
+            50%  { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .header .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, rgba(79,195,247,0.15), rgba(179,136,255,0.15));
+            border: 1px solid rgba(79,195,247,0.25);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent-blue);
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+        .header p {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+        .header .filename {
+            display: inline-block;
+            background: rgba(79,195,247,0.1);
+            border: 1px solid rgba(79,195,247,0.2);
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+        }
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 36px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.7s ease-out both;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .section:hover {
+            border-color: rgba(79,195,247,0.15);
+            box-shadow: var(--glow-blue);
+        }
+        .section:nth-child(2) { animation-delay: 0.1s; }
+        .section:nth-child(3) { animation-delay: 0.2s; }
+        .section:nth-child(4) { animation-delay: 0.3s; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 16px 16px 0 0;
+        }
+        .section.blue::before   { background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); }
+        .section.purple::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink)); }
+        .section.green::before  { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title .icon { font-size: 1.5rem; }
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+        .mermaid-wrapper {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+        .step-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 6px;
+        }
+        .step-table thead th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .step-table tbody tr {
+            background: rgba(255,255,255,0.02);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .step-table tbody tr:hover {
+            background: rgba(79,195,247,0.06);
+            transform: translateX(4px);
+        }
+        .step-table td {
+            padding: 14px 16px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            vertical-align: middle;
+        }
+        .step-table td:first-child {
+            border-radius: 10px 0 0 10px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            width: 60px;
+        }
+        .step-table td:last-child {
+            border-radius: 0 10px 10px 0;
+            color: var(--text-secondary);
+        }
+        .component {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .comp-blue   { background: rgba(79,195,247,0.12); color: var(--accent-blue); }
+        .comp-green  { background: rgba(105,240,174,0.12); color: var(--accent-green); }
+        .comp-purple { background: rgba(179,136,255,0.12); color: var(--accent-purple); }
+        .comp-orange { background: rgba(255,171,64,0.12); color: var(--accent-orange); }
+        .comp-pink   { background: rgba(244,143,177,0.12); color: var(--accent-pink); }
+        .tip-box {
+            display: flex;
+            gap: 14px;
+            background: linear-gradient(135deg, rgba(105,240,174,0.06), rgba(79,195,247,0.06));
+            border: 1px solid rgba(105,240,174,0.15);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-top: 24px;
+            align-items: flex-start;
+        }
+        .tip-box .tip-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+        .tip-box p { font-size: 0.9rem; line-height: 1.7; color: var(--text-secondary); }
+        .tip-box strong { color: var(--accent-green); }
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 40px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="badge">📊 Code Flowchart</div>
+        <h1>RAG Hybrid Search Pipeline</h1>
+        <p>A visual breakdown of <span class="filename">5-rag-from-vectordb copy.py</span> — a Retrieval-Augmented Generation chatbot using keyword + vector hybrid search over a PDF document.</p>
+    </div>
+
+    <!-- Section 1: Full Pipeline -->
+    <div class="section blue">
+        <div class="section-title"><span class="icon">🔄</span> End-to-End Pipeline</div>
+        <p class="section-subtitle">Complete flow from loading environment secrets to displaying the LLM's answer.</p>
+        <div class="mermaid-wrapper">
+            <pre class="mermaid">
+flowchart TD
+    A["Load .env Secrets"]
+    B["Init Groq LLM"]
+    C["Load Embedding Model"]
+    D["Load PDF - mcp.pdf"]
+    E["Split into Chunks"]
+    F{"FAISS index on disk?"}
+    G["Load FAISS from disk"]
+    H["Create new FAISS index"]
+    I["Save FAISS to disk"]
+    J["Build BM25 Keyword Retriever"]
+    K["User asks a question"]
+    L{"Input = quit?"}
+    M["BM25 Keyword Search"]
+    N["FAISS Vector Search"]
+    O["Merge and Deduplicate"]
+    P["Build Context String"]
+    Q["Send to Groq LLM"]
+    R["Display Bot Response"]
+    S["Exit Program"]
+
+    A --> B --> C --> D --> E
+    E --> F
+    F -- Yes --> G --> J
+    F -- No --> H --> I --> J
+    J --> K --> L
+    L -- Yes --> S
+    L -- No --> M
+    L -- No --> N
+    M --> O
+    N --> O
+    O --> P --> Q --> R --> K
+
+    style A fill:#1a1a2e,stroke:#4fc3f7,stroke-width:2px,color:#e8eaed
+    style B fill:#1a1a2e,stroke:#4fc3f7,stroke-width:2px,color:#e8eaed
+    style C fill:#1a1a2e,stroke:#4fc3f7,stroke-width:2px,color:#e8eaed
+    style D fill:#1a1a2e,stroke:#69f0ae,stroke-width:2px,color:#e8eaed
+    style E fill:#1a1a2e,stroke:#69f0ae,stroke-width:2px,color:#e8eaed
+    style F fill:#1a1a2e,stroke:#f48fb1,stroke-width:2px,color:#e8eaed
+    style G fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+    style H fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+    style I fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+    style J fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+    style K fill:#262640,stroke:#80deea,stroke-width:2px,color:#e8eaed
+    style L fill:#1a1a2e,stroke:#f48fb1,stroke-width:2px,color:#e8eaed
+    style M fill:#1a1a2e,stroke:#ff8a65,stroke-width:2px,color:#e8eaed
+    style N fill:#1a1a2e,stroke:#ff8a65,stroke-width:2px,color:#e8eaed
+    style O fill:#1a1a2e,stroke:#ff8a65,stroke-width:2px,color:#e8eaed
+    style P fill:#1a1a2e,stroke:#ff8a65,stroke-width:2px,color:#e8eaed
+    style Q fill:#1a1a2e,stroke:#b388ff,stroke-width:2px,color:#e8eaed
+    style R fill:#1a1a2e,stroke:#b388ff,stroke-width:2px,color:#e8eaed
+    style S fill:#1a1a2e,stroke:#f48fb1,stroke-width:2px,color:#e8eaed
+            </pre>
+        </div>
+    </div>
+
+    <!-- Section 2: Step Breakdown Table -->
+    <div class="section purple">
+        <div class="section-title"><span class="icon">📋</span> Step-by-Step Breakdown</div>
+        <p class="section-subtitle">Each stage mapped to its key component and purpose.</p>
+        <table class="step-table">
+            <thead>
+                <tr><th>Step</th><th>What Happens</th><th>Key Component</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>⚙️</td>
+                    <td>Load <code>.env</code> secrets</td>
+                    <td><span class="component comp-blue">dotenv</span></td>
+                    <td>Securely load API keys</td>
+                </tr>
+                <tr>
+                    <td>⚙️</td>
+                    <td>Initialize LLM &amp; Embeddings</td>
+                    <td><span class="component comp-purple">ChatGroq</span> + <span class="component comp-green">HuggingFaceEmbeddings</span></td>
+                    <td>Set up the brain &amp; encoder</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Load &amp; chunk the PDF</td>
+                    <td><span class="component comp-green">PyPDFLoader</span> + <span class="component comp-green">TextSplitter</span></td>
+                    <td>Break document into searchable pieces</td>
+                </tr>
+                <tr>
+                    <td>2a</td>
+                    <td>Create / Load FAISS index</td>
+                    <td><span class="component comp-orange">FAISS</span></td>
+                    <td>Semantic (meaning-based) search</td>
+                </tr>
+                <tr>
+                    <td>2b</td>
+                    <td>Create BM25 retriever</td>
+                    <td><span class="component comp-orange">BM25Retriever</span></td>
+                    <td>Keyword (exact-match) search</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Hybrid search on user query</td>
+                    <td><span class="component comp-pink">Both + Dedup</span></td>
+                    <td>Best of both search methods</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>LLM generates answer</td>
+                    <td><span class="component comp-purple">ChatGroq.invoke()</span></td>
+                    <td>Answer grounded in retrieved context</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 3: Why Hybrid Search -->
+    <div class="section green">
+        <div class="section-title"><span class="icon">🔑</span> Why Hybrid Search?</div>
+        <p class="section-subtitle">Combining two search strategies produces richer, more accurate retrieval.</p>
+        <div class="mermaid-wrapper">
+            <pre class="mermaid">
+flowchart LR
+    Q["User Query"]
+    subgraph VEC["Vector Search - FAISS"]
+        V1["Understands meaning and synonyms"]
+        V2["Who created MCP? finds Anthropic launched MCP"]
+    end
+    subgraph KW["Keyword Search - BM25"]
+        K1["Matches exact words and names"]
+        K2["MCP November 2024 finds exact date mentions"]
+    end
+    M["Merge and Deduplicate"]
+    R["Richer, More Accurate Context"]
+    Q --> VEC --> M
+    Q --> KW --> M
+    M --> R
+    style Q fill:#1a1a2e,stroke:#80deea,stroke-width:2px,color:#e8eaed
+    style V1 fill:#1a1a2e,stroke:#b388ff,stroke-width:2px,color:#e8eaed
+    style V2 fill:#1a1a2e,stroke:#b388ff,stroke-width:2px,color:#e8eaed
+    style K1 fill:#1a1a2e,stroke:#69f0ae,stroke-width:2px,color:#e8eaed
+    style K2 fill:#1a1a2e,stroke:#69f0ae,stroke-width:2px,color:#e8eaed
+    style M fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+    style R fill:#1a1a2e,stroke:#ffab40,stroke-width:2px,color:#e8eaed
+            </pre>
+        </div>
+        <div class="tip-box">
+            <span class="tip-icon">💡</span>
+            <p><strong>Vector search</strong> catches semantically similar content (meaning-based), while <strong>BM25 keyword search</strong> catches exact term matches. Together, they provide more comprehensive retrieval than either method alone.</p>
+        </div>
+    </div>
+
+    <div class="footer">RAG Hybrid Search Pipeline &bull; 5-rag-from-vectordb copy.py</div>
+</div>
+
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        securityLevel: 'loose',
+        flowchart: {
+            curve: 'basis',
+            padding: 20,
+            useMaxWidth: true
+        }
+    });
+</script>
+
+</body>
+</html>

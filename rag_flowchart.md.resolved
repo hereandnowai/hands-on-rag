@@ -1,0 +1,119 @@
+# 🔄 RAG Hybrid Search Pipeline — Visual Flowchart
+
+> **File:** `5-rag-from-vectordb copy.py`
+> A Retrieval-Augmented Generation (RAG) chatbot that uses **hybrid search** (keyword + vector) over a PDF to answer questions via an LLM.
+
+---
+
+## End-to-End Pipeline
+
+```mermaid
+flowchart TD
+    classDef initStyle fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
+    classDef loadStyle fill:#1e1e2e,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+    classDef indexStyle fill:#1e1e2e,stroke:#f9e2af,stroke-width:2px,color:#cdd6f4
+    classDef searchStyle fill:#1e1e2e,stroke:#fab387,stroke-width:2px,color:#cdd6f4
+    classDef llmStyle fill:#1e1e2e,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
+    classDef decisionStyle fill:#1e1e2e,stroke:#f38ba8,stroke-width:2px,color:#cdd6f4
+    classDef userStyle fill:#313244,stroke:#89dceb,stroke-width:2px,color:#cdd6f4
+
+    subgraph INIT["⚙️ INITIALIZATION"]
+        A["📦 Load Environment Variables<br/><i>.env → GROQ_API_KEY, MODEL_NAME</i>"]:::initStyle
+        B["🤖 Initialize Groq LLM<br/><i>ChatGroq(model, api_key)</i>"]:::initStyle
+        C["🧠 Load Embedding Model<br/><i>all-MiniLM-L6-v2</i>"]:::initStyle
+    end
+
+    subgraph LOAD["📄 STEP 1 — LOAD & SPLIT PDF"]
+        D["📖 Load PDF<br/><i>PyPDFLoader('mcp.pdf')</i>"]:::loadStyle
+        E["✂️ Split into Chunks<br/><i>chunk_size=1000, overlap=200</i>"]:::loadStyle
+    end
+
+    subgraph INDEX["📇 STEP 2 — BUILD SEARCH INDEXES"]
+        F{"🗂️ FAISS index<br/>exists on disk?"}:::decisionStyle
+        G["💾 Load existing FAISS index<br/><i>faiss_mcp_index/</i>"]:::indexStyle
+        H["🏗️ Create new FAISS index<br/><i>from document chunks</i>"]:::indexStyle
+        I["💾 Save FAISS index to disk"]:::indexStyle
+        J["🔤 Build BM25 Keyword Retriever<br/><i>k=4 results</i>"]:::indexStyle
+    end
+
+    subgraph CHAT["💬 STEP 3 & 4 — INTERACTIVE CHAT LOOP"]
+        K["👤 User enters a question"]:::userStyle
+        L{"❓ Query == 'quit'?"}:::decisionStyle
+        M["🔍 BM25 Keyword Search<br/><i>keyword_retriever.invoke(query)</i>"]:::searchStyle
+        N["🔍 FAISS Vector Search<br/><i>similarity_search(query, k=4)</i>"]:::searchStyle
+        O["🔀 Merge & Deduplicate<br/><i>Combine keyword + vector results</i>"]:::searchStyle
+        P["📋 Build Context String<br/><i>Join all unique doc chunks</i>"]:::searchStyle
+        Q["🧠 Send to Groq LLM<br/><i>'Answer based ONLY on context'</i>"]:::llmStyle
+        R["💬 Display Bot Response"]:::llmStyle
+    end
+
+    S["🛑 Exit Program"]:::decisionStyle
+
+    A --> B --> C
+    C --> D --> E
+
+    E --> F
+    F -- "✅ Yes" --> G
+    F -- "❌ No" --> H --> I
+    G --> J
+    I --> J
+
+    J --> K
+    K --> L
+    L -- "Yes" --> S
+    L -- "No" --> M
+    L -- "No" --> N
+    M --> O
+    N --> O
+    O --> P --> Q --> R
+    R --> K
+```
+
+---
+
+## Step-by-Step Breakdown
+
+| Step | What Happens | Key Component | Purpose |
+|:----:|:-------------|:-------------:|:--------|
+| **⚙️** | Load `.env` secrets | `dotenv` | Securely load API keys |
+| **⚙️** | Init LLM & Embeddings | `ChatGroq` + `HuggingFaceEmbeddings` | Set up the brain & encoder |
+| **1** | Load & chunk the PDF | `PyPDFLoader` + `RecursiveCharacterTextSplitter` | Break document into searchable pieces |
+| **2a** | Create/Load FAISS index | `FAISS` | Semantic (meaning-based) search |
+| **2b** | Create BM25 retriever | `BM25Retriever` | Keyword (exact-match) search |
+| **3** | Hybrid search on user query | Both retrievers + deduplication | Get the best of both search methods |
+| **4** | LLM generates answer | `ChatGroq.invoke()` | Answer grounded in retrieved context |
+
+---
+
+## 🔑 Why Hybrid Search?
+
+```mermaid
+flowchart LR
+    classDef vecStyle fill:#1e1e2e,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
+    classDef kwStyle fill:#1e1e2e,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+    classDef mergeStyle fill:#1e1e2e,stroke:#f9e2af,stroke-width:2px,color:#cdd6f4
+
+    Q["🔎 User Query"]
+
+    subgraph VEC["Vector Search (FAISS)"]
+        V1["Understands meaning & synonyms"]:::vecStyle
+        V2["'Who created MCP?' →<br/>finds 'Anthropic launched MCP'"]:::vecStyle
+    end
+
+    subgraph KW["Keyword Search (BM25)"]
+        K1["Matches exact words & names"]:::kwStyle
+        K2["'MCP November 2024' →<br/>finds exact date mentions"]:::kwStyle
+    end
+
+    M["🔀 Merge + Deduplicate"]:::mergeStyle
+    R["📋 Richer, More Accurate Context"]:::mergeStyle
+
+    Q --> VEC
+    Q --> KW
+    VEC --> M
+    KW --> M
+    M --> R
+```
+
+> [!TIP]
+> **Vector search** catches semantically similar content (meaning-based), while **BM25 keyword search** catches exact term matches. Together, they provide more comprehensive retrieval than either method alone.
