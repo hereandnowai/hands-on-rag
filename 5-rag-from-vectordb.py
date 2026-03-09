@@ -1,10 +1,10 @@
 from dotenv import load_dotenv
 from os import getenv, path
 from langchain_groq import ChatGroq
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 
 load_dotenv()

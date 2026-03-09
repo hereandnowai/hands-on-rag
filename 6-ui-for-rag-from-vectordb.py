@@ -37,20 +37,44 @@ llm = ChatGroq(model=getenv("MODEL_NAME"), api_key=getenv("GROQ_API_KEY"))
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # ──────────────────────────────────────────────
-# 2. Load PDF → hybrid indexes
+# 2. Session State Initialization
 # ──────────────────────────────────────────────
-pdf_path = path.join(path.dirname(path.abspath(__file__)), "mcp.pdf")
-docs = PyPDFLoader(pdf_path).load()
-chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+def get_initial_state():
+    """Load default mcp.pdf into session state."""
+    pdf_path = path.join(path.dirname(path.abspath(__file__)), "mcp.pdf")
+    docs = PyPDFLoader(pdf_path).load()
+    chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+    
+    faiss_dir = path.join(path.dirname(path.abspath(__file__)), "faiss_mcp_index")
+    if path.exists(faiss_dir):
+        vectordb = FAISS.load_local(faiss_dir, embeddings, allow_dangerous_deserialization=True)
+    else:
+        vectordb = FAISS.from_documents(chunks, embeddings)
+        vectordb.save_local(faiss_dir)
+        
+    keyword_retriever = BM25Retriever.from_documents(chunks, k=4)
+    return {"chunks": chunks, "vectordb": vectordb, "keyword_retriever": keyword_retriever}
 
-faiss_dir = path.join(path.dirname(path.abspath(__file__)), "faiss_mcp_index")
-if path.exists(faiss_dir):
-    vectordb = FAISS.load_local(faiss_dir, embeddings, allow_dangerous_deserialization=True)
-else:
-    vectordb = FAISS.from_documents(chunks, embeddings)
-    vectordb.save_local(faiss_dir)
-
-keyword_retriever = BM25Retriever.from_documents(chunks, k=4)
+def process_uploaded_pdf(file_path, state):
+    """Process a new PDF and merge it into the current session state."""
+    if not file_path:
+        return state, gr.Info("No file provided.")
+        
+    gr.Info("Processing uploaded document...")
+    docs = PyPDFLoader(file_path).load()
+    new_chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+    
+    # Update state lists
+    state["chunks"].extend(new_chunks)
+    
+    # Update FAISS
+    state["vectordb"].add_documents(new_chunks)
+    
+    # Re-initialize BM25 since it doesn't support adding incrementally easily.
+    state["keyword_retriever"] = BM25Retriever.from_documents(state["chunks"], k=4)
+    
+    gr.Info("Document successfully indexed!")
+    return state
 
 # ──────────────────────────────────────────────
 # 3. Chat logic
@@ -62,10 +86,10 @@ SYSTEM_PROMPT = (
     "If the context does not contain enough information, say so politely."
 )
 
-def hybrid_retrieve(query: str, k: int = 4) -> str:
+def hybrid_retrieve(query: str, state: dict, k: int = 4) -> str:
     """Keyword (BM25) + vector (FAISS) search, deduplicated."""
-    keyword_results = keyword_retriever.invoke(query)
-    vector_results  = vectordb.similarity_search(query, k=k)
+    keyword_results = state["keyword_retriever"].invoke(query)
+    vector_results  = state["vectordb"].similarity_search(query, k=k)
     seen, merged = set(), []
     for doc in keyword_results + vector_results:
         if doc.page_content not in seen:
@@ -74,9 +98,9 @@ def hybrid_retrieve(query: str, k: int = 4) -> str:
     return "\n\n".join(d.page_content for d in merged)
 
 
-def respond(message: str, history: list[dict]) -> str:
+def respond(message: str, history: list[dict], state: dict) -> str:
     """Generate a response using hybrid RAG."""
-    context = hybrid_retrieve(message)
+    context = hybrid_retrieve(message, state)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
     ]
@@ -405,6 +429,9 @@ EXAMPLE_QUERIES = [
 
 with gr.Blocks(title=f"{ORG_NAME} — RAG Chat") as demo:
 
+    # ── Session State ──
+    session_state = gr.State(get_initial_state)
+
     # ── Branded header ──
     gr.HTML(f"""
     <div class="header-wrap">
@@ -416,47 +443,58 @@ with gr.Blocks(title=f"{ORG_NAME} — RAG Chat") as demo:
     </div>
     """)
 
-    # ── Chat area (glassmorphic panel) ──
-    with gr.Column(elem_classes=["chat-panel"]):
-        chatbot = gr.Chatbot(
-            label="",
-            elem_classes=["chatbot-area"],
-            avatar_images=(None, AVATAR),
-            height=480,
-            buttons=["copy"],
-            layout="bubble",
-            placeholder=(
-                f"<div style='text-align:center;padding:60px 20px'>"
-                f"<img src='{AVATAR}' style='width:88px;height:88px;border-radius:50%;"
-                f"box-shadow:0 0 25px rgba(255,223,0,.25),0 4px 20px rgba(0,0,0,.4);"
-                f"border:2px solid rgba(255,223,0,.2);animation:avatarFloat 3s ease-in-out infinite' />"
-                f"<h2 style='background:linear-gradient(135deg,#FFDF00,#FFB800);-webkit-background-clip:text;"
-                f"-webkit-text-fill-color:transparent;font-weight:700;margin:18px 0 6px;font-size:1.4rem'>"
-                f"How can I help you today?</h2>"
-                f"<p style='color:rgba(255,255,255,.4);font-size:.9rem;font-weight:300'>"
-                f"Ask me anything about the MCP document</p>"
-                f"</div>"
-            ),
-        )
-
-    # ── Input row ──
-    with gr.Row(elem_classes=["input-wrap"]):
-        msg = gr.Textbox(
-            placeholder="Type a message…",
-            show_label=False,
-            scale=9,
-            container=False,
-            autofocus=True,
-        )
-        send_btn = gr.Button("Send ➤", variant="primary", scale=1, min_width=100)
-
-    # ── New chat button ──
     with gr.Row():
-        clear_btn = gr.Button("✦  New Chat", variant="secondary", size="sm")
+        # ── Sidebar for Uploading ──
+        with gr.Column(scale=1):
+            gr.Markdown("### Add Knowledge")
+            pdf_upload = gr.File(
+                label="Upload extra PDF context",
+                file_types=[".pdf"],
+                elem_classes=["input-wrap"],
+                height=150
+            )
 
-    # ── Example prompts ──
-    with gr.Accordion("✨  Try these questions", open=False, elem_classes=["examples-accordion"]):
-        gr.Examples(examples=EXAMPLE_QUERIES, inputs=msg, label="")
+        # ── Chat area (glassmorphic panel) ──
+        with gr.Column(elem_classes=["chat-panel"], scale=3):
+            chatbot = gr.Chatbot(
+                label="",
+                elem_classes=["chatbot-area"],
+                avatar_images=(None, AVATAR),
+                height=480,
+                buttons=["copy"],
+                layout="bubble",
+                placeholder=(
+                    f"<div style='text-align:center;padding:60px 20px'>"
+                    f"<img src='{AVATAR}' style='width:88px;height:88px;border-radius:50%;"
+                    f"box-shadow:0 0 25px rgba(255,223,0,.25),0 4px 20px rgba(0,0,0,.4);"
+                    f"border:2px solid rgba(255,223,0,.2);animation:avatarFloat 3s ease-in-out infinite' />"
+                    f"<h2 style='background:linear-gradient(135deg,#FFDF00,#FFB800);-webkit-background-clip:text;"
+                    f"-webkit-text-fill-color:transparent;font-weight:700;margin:18px 0 6px;font-size:1.4rem'>"
+                    f"How can I help you today?</h2>"
+                    f"<p style='color:rgba(255,255,255,.4);font-size:.9rem;font-weight:300'>"
+                    f"Ask me anything about the MCP document or upload your own.</p>"
+                    f"</div>"
+                ),
+            )
+
+            # ── Input row ──
+            with gr.Row(elem_classes=["input-wrap"]):
+                msg = gr.Textbox(
+                    placeholder="Type a message…",
+                    show_label=False,
+                    scale=9,
+                    container=False,
+                    autofocus=True,
+                )
+                send_btn = gr.Button("Send ➤", variant="primary", scale=1, min_width=100)
+
+            # ── New chat button ──
+            with gr.Row():
+                clear_btn = gr.Button("✦  New Chat", variant="secondary", size="sm")
+
+            # ── Example prompts ──
+            with gr.Accordion("✨  Try these questions", open=False, elem_classes=["examples-accordion"]):
+                gr.Examples(examples=EXAMPLE_QUERIES, inputs=msg, label="")
 
     # ── Footer ──
     gr.HTML(f"""
@@ -472,18 +510,24 @@ with gr.Blocks(title=f"{ORG_NAME} — RAG Chat") as demo:
     """)
 
     # ── Wiring ──
-    def user_submit(user_message, history):
+    pdf_upload.upload(
+        process_uploaded_pdf,
+        inputs=[pdf_upload, session_state],
+        outputs=[session_state]
+    )
+
+    def user_submit(user_message, history, state):
         """Append user message and generate bot reply."""
         if not user_message.strip():
             return "", history
         history = history + [{"role": "user", "content": user_message}]
-        bot_reply = respond(user_message, history)
+        bot_reply = respond(user_message, history, state)
         history = history + [{"role": "assistant", "content": bot_reply}]
         return "", history
 
-    msg.submit(user_submit, [msg, chatbot], [msg, chatbot])
-    send_btn.click(user_submit, [msg, chatbot], [msg, chatbot])
-    clear_btn.click(lambda: ([], ""), outputs=[chatbot, msg])
+    msg.submit(user_submit, [msg, chatbot, session_state], [msg, chatbot])
+    send_btn.click(user_submit, [msg, chatbot, session_state], [msg, chatbot])
+    clear_btn.click(lambda: ([], get_initial_state(), None), outputs=[chatbot, session_state, pdf_upload])
 
 # ──────────────────────────────────────────────
 # 6. Launch
