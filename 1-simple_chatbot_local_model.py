@@ -3,7 +3,12 @@ from os import getenv
 from langchain_ollama import ChatOllama
 
 load_dotenv()
-llm = ChatOllama(model=getenv("MODEL_NAME_LOCAL"))
+model = getenv("LOCAL_MODEL_PATH")
+
+if not model:
+    raise ValueError("LOCAL_MODEL_PATH not found in .env file.")
+
+llm = ChatOllama(model=model)
 
 print("Chatbot ready! Type 'quit' to exit.\n")
 while True:

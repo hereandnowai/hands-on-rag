@@ -1,0 +1,6 @@
+ICICI Bank
+
+GPT-OSS-20b
+
+1. ICICI Internal Policy (static/ public) - fine-tune
+2. Ranjit's bank balance (dynamic/ confidential) - RAG

@@ -1,14 +1,18 @@
 from dotenv import load_dotenv
 from os import getenv, path
 from langchain_groq import ChatGroq
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 
 load_dotenv()
-llm = ChatGroq(model=getenv("MODEL_NAME"), api_key=getenv("GROQ_API_KEY"))
+llm = ChatGroq(
+    model=getenv("MODEL_NAME") or "mixtral-8x7b-32768", 
+    api_key=getenv("GROQ_API_KEY") # type: ignore
+)
+
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Step 1: Load PDF and split into chunks

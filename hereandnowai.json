@@ -1,0 +1,90 @@
+[
+  {
+    "input": "Extract the organization information:\n<div class='org'><h2>HERE AND NOW AI</h2><span class='type'>Artificial Intelligence Research Institute</span><span class='location'>Chennai, India</span><span class='focus'>AI Education, Research, Automation</span></div>",
+    "output": {
+      "name": "HERE AND NOW AI",
+      "type": "Artificial Intelligence Research Institute",
+      "location": "Chennai, India",
+      "focus": "AI Education, Research, Automation"
+    }
+  },
+  {
+    "input": "Extract the founder information:\n<div class='org'><h2>HERE AND NOW AI</h2><span class='founder'>Ruthran Raghavan</span><span class='role'>CEO & Chief AI Scientist</span></div>",
+    "output": {
+      "organization": "HERE AND NOW AI",
+      "founder": "Ruthran Raghavan",
+      "role": "CEO & Chief AI Scientist"
+    }
+  },
+  {
+    "input": "Extract the leadership information:\n<div class='team'><h2>Leadership</h2><span class='ceo'>Ruthran Raghavan</span><span class='coo'>Deepti Balagopal</span><span class='cto'>Balaji K</span></div>",
+    "output": {
+      "CEO": "Ruthran Raghavan",
+      "COO": "Deepti Balagopal",
+      "CTO": "Balaji K"
+    }
+  },
+  {
+    "input": "Extract the services:\n<div class='services'><ul><li>AI Training</li><li>AI Agents Development</li><li>Automation Systems</li><li>AI-First Software</li></ul></div>",
+    "output": {
+      "services": [
+        "AI Training",
+        "AI Agents Development",
+        "Automation Systems",
+        "AI-First Software"
+      ]
+    }
+  },
+  {
+    "input": "Extract the mission:\n<div class='mission'><p>Democratizing Artificial Intelligence through education, research, and real-world applications.</p></div>",
+    "output": {
+      "mission": "Democratizing Artificial Intelligence through education, research, and real-world applications"
+    }
+  },
+  {
+    "input": "Extract the vision:\n<div class='vision'><p>Building a Fully Autonomous AI Professor and AI-driven education ecosystem.</p></div>",
+    "output": {
+      "vision": "Building a Fully Autonomous AI Professor and AI-driven education ecosystem"
+    }
+  },
+  {
+    "input": "Extract the audience:\n<div class='audience'><span>Students</span><span>Professionals</span><span>Colleges</span><span>Corporates</span></div>",
+    "output": {
+      "audience": [
+        "Students",
+        "Professionals",
+        "Colleges",
+        "Corporates"
+      ]
+    }
+  },
+  {
+    "input": "Extract the offerings:\n<div class='offerings'><span>AI Workshops</span><span>Corporate Training</span><span>Custom AI Solutions</span></div>",
+    "output": {
+      "offerings": [
+        "AI Workshops",
+        "Corporate Training",
+        "Custom AI Solutions"
+      ]
+    }
+  },
+  {
+    "input": "Extract the product information:\n<div class='product'><h2>AI-CRM</h2><span class='category'>AI Software</span><span class='description'>AI-powered CRM with chat interface and automation</span></div>",
+    "output": {
+      "name": "AI-CRM",
+      "category": "AI Software",
+      "description": "AI-powered CRM with chat interface and automation"
+    }
+  },
+  {
+    "input": "Extract the research focus:\n<div class='research'><span>AI Agents</span><span>MCP Servers</span><span>Automation</span><span>LLMs</span></div>",
+    "output": {
+      "research_focus": [
+        "AI Agents",
+        "MCP Servers",
+        "Automation",
+        "LLMs"
+      ]
+    }
+  }
+]
